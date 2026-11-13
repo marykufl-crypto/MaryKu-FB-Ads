@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>FB 廣告雷達</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --card: #ffffff; --ink: #1f2430; --muted: #6a7080; --line: #e3e1da;
+    --accent: #2f6f5e; --accent-soft: #e2f0ea; --warm: #b8651b; --warm-soft: #fbeedd;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #14171c; --card: #1d2128; --ink: #e8e9ec; --muted: #9aa1b0; --line: #2d323c;
+      --accent: #6cc4a8; --accent-soft: #1f332d; --warm: #e8a063; --warm-soft: #3a2b1c;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171c; --card: #1d2128; --ink: #e8e9ec; --muted: #9aa1b0; --line: #2d323c;
+    --accent: #6cc4a8; --accent-soft: #1f332d; --warm: #e8a063; --warm-soft: #3a2b1c;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 15px/1.6 -apple-system, "PingFang HK", "Microsoft JhengHei", "Noto Sans TC", sans-serif; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 16px 56px; }
+  h1 { font-size: 22px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 13px; margin-bottom: 18px; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 18px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  .tile b { display: block; font-size: 24px; line-height: 1.2; }
+  .tile span { color: var(--muted); font-size: 12px; }
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .bar input, .bar select { background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 8px 10px; font: inherit; min-width: 0; }
+  .bar input { flex: 1 1 180px; }
+  .note { background: var(--warm-soft); border-left: 3px solid var(--warm); border-radius: 6px;
+    padding: 10px 12px; font-size: 13px; margin-bottom: 18px; }
+  h2 { font-size: 16px; margin: 22px 0 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card); border: 1px solid var(--line);
+    border-radius: 10px; overflow: hidden; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  tr:last-child td { border-bottom: 0; }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: var(--accent-soft); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+  .card .page { font-weight: 600; font-size: 14px; color: var(--accent); text-decoration: none; }
+  .card .page:hover { text-decoration: underline; }
+  .card .t { font-size: 14px; word-break: break-word; }
+  .card .t.empty { color: var(--muted); font-style: italic; }
+  .badges { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
+  .badge.days { background: var(--warm-soft); color: var(--warm); font-weight: 600; }
+  .meta { color: var(--muted); font-size: 12px; }
+  .actions { margin-top: auto; display: flex; gap: 8px; }
+  .btn { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
+    background: transparent; color: var(--ink); text-decoration: none; cursor: pointer; font-family: inherit; }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .empty-all { color: var(--muted); padding: 30px 0; text-align: center; }
+  footer { color: var(--muted); font-size: 12px; margin-top: 28px; }
+  @media (max-width: 520px) { .col-hide { display: none; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>FB 廣告雷達 · 同行正在投的廣告</h1>
+  <div class="sub" id="sub">載入中…</div>
+
+  <div class="tiles" id="tiles"></div>
+
+  <div class="note" id="note"></div>
+
+  <div class="bar">
+    <input id="q" type="search" placeholder="搜尋頁面名稱或廣告標題">
+    <select id="fPage"><option value="">全部頁面</option></select>
+    <select id="fTag"><option value="">全部分類</option></select>
+    <select id="fSort">
+      <option value="days">按 投放天數（長到短）</option>
+      <option value="new">按 最新開始投放</option>
+      <option value="page">按 頁面名稱</option>
+    </select>
+  </div>
+
+  <h2>各頁面一覽</h2>
+  <table>
+    <thead><tr><th>頁面</th><th>廣告數</th><th>最長已投放</th><th class="col-hide">最新開始</th></tr></thead>
+    <tbody id="pages"></tbody>
+  </table>
+
+  <h2>廣告（<span id="count">0</span>）</h2>
+  <div class="grid" id="grid"></div>
+  <div class="empty-all" id="none" hidden>沒有符合條件的廣告</div>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let D = null, ADS = [];
+
+const fmtDate = ts => { const d = new Date(ts * 1000);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+function days(a) { return Math.max(0, Math.floor((D.fetched_at - a.start) / 86400)); }
+function daysLabel(n) { return n === 0 ? '今天開始' : '已投放 ' + n + ' 天'; }
+
+function build() {
+  ADS = D.ads.map(a => Object.assign({}, a, { days: days(a) }));
+  const pages = [...new Set(ADS.map(a => a.page))].sort();
+  const tags = [...new Set(ADS.map(a => a.tag))].sort();
+  pages.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p; $('fPage').appendChild(o); });
+  tags.forEach(t => { const o = document.createElement('option'); o.value = t; o.textContent = t; $('fTag').appendChild(o); });
+
+  const longest = ADS.reduce((m, a) => a.days > m.days ? a : m, ADS[0]);
+  $('sub').textContent = '資料來源：' + D.source + ' · 市場：香港 · 資料更新於 ' + fmtDate(D.fetched_at);
+  $('tiles').innerHTML =
+    '<div class="tile"><b>' + ADS.length + '</b><span>正在投放的廣告</span></div>' +
+    '<div class="tile"><b>' + pages.length + '</b><span>追蹤的頁面</span></div>' +
+    '<div class="tile"><b>' + longest.days + ' 天</b><span>最長投放：' + esc(longest.page) + '</span></div>';
+  $('note').textContent = D.note + ' 「投放天數」是從開始投放日算起，投得越久，通常代表這條廣告值得參考。分類是我按頁面和標題自行歸類，只供篩選。';
+  $('foot').textContent = '這是同行廣告的參考資料，用來學習結構和切入角度，不要照抄字句。';
+
+  // page table
+  const rows = pages.map(p => {
+    const list = ADS.filter(a => a.page === p);
+    return { p, n: list.length, max: Math.max(...list.map(a => a.days)), newest: Math.min(...list.map(a => a.days)) };
+  }).sort((a, b) => b.max - a.max);
+  $('pages').innerHTML = rows.map(r =>
+    '<tr class="click" data-p="' + esc(r.p) + '"><td>' + esc(r.p) + '</td><td>' + r.n + '</td><td>' + r.max +
+    ' 天</td><td class="col-hide">' + (r.newest === 0 ? '今天' : r.newest + ' 天前') + '</td></tr>').join('');
+  document.querySelectorAll('#pages tr.click').forEach(tr => tr.onclick = () => {
+    $('fPage').value = tr.dataset.p; render(); $('grid').scrollIntoView({ behavior: 'smooth' }); });
+  render();
+}
+
+function render() {
+  const q = $('q').value.trim().toLowerCase(), p = $('fPage').value, t = $('fTag').value, s = $('fSort').value;
+  let list = ADS.filter(a => (!p || a.page === p) && (!t || a.tag === t) &&
+    (!q || (a.page + ' ' + a.title).toLowerCase().includes(q)));
+  if (s === 'days') list.sort((a, b) => b.days - a.days);
+  else if (s === 'new') list.sort((a, b) => a.days - b.days);
+  else list.sort((a, b) => a.page.localeCompare(b.page, 'zh-Hant'));
+  $('count').textContent = list.length;
+  $('none').hidden = list.length > 0;
+  $('grid').innerHTML = list.map(a =>
+    '<div class="card">' +
+      '<a class="page" target="_blank" rel="noopener" href="https://www.facebook.com/' + esc(a.page_id) + '">' + esc(a.page) + '</a>' +
+      '<div class="t' + (a.title ? '' : ' empty') + '">' + (a.title ? esc(a.title) : '（廣告庫沒有顯示標題，點下面連結看廣告原貌）') + '</div>' +
+      '<div class="badges"><span class="badge days">' + daysLabel(a.days) + '</span><span class="badge">' + esc(a.tag) + '</span></div>' +
+      '<div class="meta">開始投放：' + fmtDate(a.start) + '</div>' +
+      '<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?id=' + esc(a.id) + '">在廣告庫看廣告</a>' +
+      '<button class="btn" data-copy="' + esc(a.title || a.page) + '">複製標題</button></div>' +
+    '</div>').join('');
+  document.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
+    navigator.clipboard.writeText(b.dataset.copy).then(() => { const o = b.textContent; b.textContent = '已複製'; setTimeout(() => b.textContent = o, 1200); }); });
+}
+
+['q', 'fPage', 'fTag', 'fSort'].forEach(id => $(id).addEventListener(id === 'q' ? 'input' : 'change', render));
+
+fetch('data.json').then(r => r.json()).then(j => { D = j; build(); })
+  .catch(() => { $('sub').textContent = '載入資料失敗，請重新整理頁面。'; });
+</script>
+</body>
+</html>
