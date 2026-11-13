@@ -54,7 +54,7 @@
   .badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--accent-soft); color: var(--accent); }
   .badge.days { background: var(--warm-soft); color: var(--warm); font-weight: 600; }
   .meta { color: var(--muted); font-size: 12px; }
-  .actions { margin-top: auto; display: flex; gap: 8px; }
+  .actions { margin-top: auto; display: flex; flex-wrap: wrap; gap: 8px; }
   .btn { font-size: 13px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line);
     background: transparent; color: var(--ink); text-decoration: none; cursor: pointer; font-family: inherit; }
   .btn:hover { border-color: var(--accent); color: var(--accent); }
@@ -85,7 +85,7 @@
 
   <h2>各頁面一覽</h2>
   <table>
-    <thead><tr><th>頁面</th><th>廣告數</th><th>最長已投放</th><th class="col-hide">最新開始</th></tr></thead>
+    <thead><tr><th>頁面</th><th>廣告數</th><th>最長已投放</th><th class="col-hide">最新開始</th><th>圖片／影片</th></tr></thead>
     <tbody id="pages"></tbody>
   </table>
 
@@ -103,6 +103,9 @@ let D = null, ADS = [];
 
 const fmtDate = ts => { const d = new Date(ts * 1000);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+
+// Meta Ad Library page gallery: shows every active ad of this page with its image / video
+const galleryUrl = pid => 'https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=HK&view_all_page_id=' + encodeURIComponent(pid);
 
 function days(a) { return Math.max(0, Math.floor((D.fetched_at - a.start) / 86400)); }
 function daysLabel(n) { return n === 0 ? '今天開始' : '已投放 ' + n + ' 天'; }
@@ -126,13 +129,15 @@ function build() {
   // page table
   const rows = pages.map(p => {
     const list = ADS.filter(a => a.page === p);
-    return { p, n: list.length, max: Math.max(...list.map(a => a.days)), newest: Math.min(...list.map(a => a.days)) };
+    return { p, pid: list[0].page_id, n: list.length, max: Math.max(...list.map(a => a.days)), newest: Math.min(...list.map(a => a.days)) };
   }).sort((a, b) => b.max - a.max);
   $('pages').innerHTML = rows.map(r =>
     '<tr class="click" data-p="' + esc(r.p) + '"><td>' + esc(r.p) + '</td><td>' + r.n + '</td><td>' + r.max +
-    ' 天</td><td class="col-hide">' + (r.newest === 0 ? '今天' : r.newest + ' 天前') + '</td></tr>').join('');
+    ' 天</td><td class="col-hide">' + (r.newest === 0 ? '今天' : r.newest + ' 天前') +
+    '</td><td><a class="btn" target="_blank" rel="noopener" href="' + galleryUrl(r.pid) + '">看廣告</a></td></tr>').join('');
   document.querySelectorAll('#pages tr.click').forEach(tr => tr.onclick = () => {
     $('fPage').value = tr.dataset.p; render(); $('grid').scrollIntoView({ behavior: 'smooth' }); });
+  document.querySelectorAll('#pages a.btn').forEach(a => a.onclick = e => e.stopPropagation());
   render();
 }
 
@@ -148,10 +153,11 @@ function render() {
   $('grid').innerHTML = list.map(a =>
     '<div class="card">' +
       '<a class="page" target="_blank" rel="noopener" href="https://www.facebook.com/' + esc(a.page_id) + '">' + esc(a.page) + '</a>' +
-      '<div class="t' + (a.title ? '' : ' empty') + '">' + (a.title ? esc(a.title) : '（廣告庫沒有顯示標題，點下面連結看廣告原貌）') + '</div>' +
+      '<div class="t' + (a.title ? '' : ' empty') + '">' + (a.title ? esc(a.title) : '（廣告庫沒有顯示標題，點下面連結看圖片或影片）') + '</div>' +
       '<div class="badges"><span class="badge days">' + daysLabel(a.days) + '</span><span class="badge">' + esc(a.tag) + '</span></div>' +
       '<div class="meta">開始投放：' + fmtDate(a.start) + '</div>' +
-      '<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?id=' + esc(a.id) + '">在廣告庫看廣告</a>' +
+      '<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.facebook.com/ads/library/?id=' + esc(a.id) + '">看這條廣告</a>' +
+      '<a class="btn" target="_blank" rel="noopener" href="' + galleryUrl(a.page_id) + '">該頁面全部廣告</a>' +
       '<button class="btn" data-copy="' + esc(a.title || a.page) + '">複製標題</button></div>' +
     '</div>').join('');
   document.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => {
